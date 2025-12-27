@@ -7,4 +7,4 @@ It allows the user to:
 - Filter students by university
 - Search students by GPA
 
-The project was uploaded to GitHub as part of the course bonus requirement.
+
