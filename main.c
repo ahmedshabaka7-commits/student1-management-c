@@ -2,17 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #define NAME_LEN 50
 #define COURSE_LEN 50
 #define UNI_LEN 10
 
+#define FILE_ALL  "StudentData.csv"
 #define FILE_BUE  "BUE.txt"
 #define FILE_AAST "AAST.txt"
-
-/*this info of excel from ai */
-#define FILE_ALL  "StudentData.csv"
 
 /* student structure */
 typedef struct {
@@ -26,38 +23,29 @@ typedef struct {
 /* get file size */
 long getFileSizeBytes(char fileName[])
 {
-    FILE* f;
+    FILE* f = fopen(fileName, "r");
     long size;
 
-    f = fopen(fileName, "r");
-    if (f == NULL)
-        return 0;
-
+    if (f == NULL) return 0;
     fseek(f, 0, SEEK_END);
     size = ftell(f);
     fclose(f);
-
     return size;
 }
 
-/* count students in university file */
+/* count students in a file */
 int countStudentsInFile(char fileName[])
 {
     FILE* f;
-    int count = 0;
-    int id;
-    char name[NAME_LEN];
+    int count = 0, id;
+    char name[NAME_LEN], course[COURSE_LEN];
     float gpa;
-    char course[COURSE_LEN];
 
     f = fopen(fileName, "r");
-    if (f == NULL)
-        return 0;
+    if (f == NULL) return 0;
 
     while (fscanf(f, "%d %s %f %s", &id, name, &gpa, course) == 4)
-    {
         count++;
-    }
 
     fclose(f);
     return count;
@@ -67,27 +55,20 @@ int countStudentsInFile(char fileName[])
 void addToUniFile(char fileName[], Student s)
 {
     FILE* f = fopen(fileName, "a");
-    if (f == NULL)
-    {
-        return;
-    }
+    if (f == NULL) return;
 
     fprintf(f, "%d %s %.2f %s\n", s.id, s.name, s.gpa, s.course);
     fclose(f);
 }
 
-/* add student to master CSV */
+/* add student to CSV (simple format) */
 void addToCSV(Student s)
 {
     FILE* f = fopen(FILE_ALL, "a");
-    if (f == NULL)
-    {
-        return;
-    }
+    if (f == NULL) return;
 
-    fprintf(f, "%s,%d,%s,%.2f,%s\n",
+    fprintf(f, "%s %d %s %.2f %s\n",
             s.uni, s.id, s.name, s.gpa, s.course);
-
     fclose(f);
 }
 
@@ -101,7 +82,7 @@ int loadCSV(Student* students, int max)
         return 0;
 
     while (count < max &&
-           fscanf(f, "%9[^,],%d,%49[^,],%f,%49[^\n]",
+           fscanf(f, "%[^,],%d,%[^,],%f,%[^\n]",
                   students[count].uni,
                   &students[count].id,
                   students[count].name,
@@ -115,6 +96,7 @@ int loadCSV(Student* students, int max)
     return count;
 }
 
+
 /* display one student */
 void displayOne(Student* students, int i)
 {
@@ -126,44 +108,28 @@ void displayOne(Student* students, int i)
 }
 
 /* filter students by university */
-int filterUni(Student* students, int total, Student* filtered, int uniChoice)
+int filterUni(Student* students, int total, Student* filtered, int choice)
 {
-    int i;
-    int count = 0;
+    int i, count = 0;
 
     for (i = 0; i < total; i++)
     {
-        if (uniChoice == 1)
-        {
-            if (strcmp(students[i].uni, "BUE") == 0)
-            {
-                filtered[count] = students[i];
-                count++;
-            }
-        }
-        else if (uniChoice == 2)
-        {
-            if (strcmp(students[i].uni, "AAST") == 0)
-            {
-                filtered[count] = students[i];
-                count++;
-            }
-        }
-        else if (uniChoice == 3)
-        {
-            filtered[count] = students[i];
-            count++;
-        }
-    }
+        if (choice == 1 && strcmp(students[i].uni, "BUE") == 0)
+            filtered[count++] = students[i];
 
+        if (choice == 2 && strcmp(students[i].uni, "AAST") == 0)
+            filtered[count++] = students[i];
+
+        if (choice == 3)
+            filtered[count++] = students[i];
+    }
     return count;
 }
 
-/* display list of students */
+/* display list */
 void display(Student* students, int total, char title[])
 {
     int i;
-
     printf("\n%s\n", title);
     printf("Number of students: %d\n", total);
 
@@ -174,51 +140,53 @@ void display(Student* students, int total, char title[])
     }
 }
 
-/* sort students by GPA (bubble sort) */
-void sortByGPA(Student* students, int total)
-{
-    int i, j;
-    Student temp;
-
-    for (i = 0; i < total - 1; i++)
-    {
-        for (j = 0; j < total - 1 - i; j++)
-        {
-            if (students[j].gpa > students[j + 1].gpa)
-            {
-                temp = students[j];
-                students[j] = students[j + 1];
-                students[j + 1] = temp;
-            }
-        }
-    }
-}
-
 /* search GPA */
 void searchGPA(Student* students, int total, float gpa)
 {
-    int i;
-    int found = 0;
+    int i, found = 0;
 
     for (i = 0; i < total; i++)
     {
-        if (fabs(students[i].gpa - gpa) < 0.01)
+        if (students[i].gpa >= gpa - 0.01 &&
+            students[i].gpa <= gpa + 0.01)
         {
             displayOne(students, i);
             found = 1;
         }
     }
-
     if (!found)
         printf("No student found with GPA %.2f\n", gpa);
+}
+
+/* find max & min GPA */
+void findMaxMinGPA(Student* students, int total)
+{
+    int i;
+    float maxGPA, minGPA;
+
+    if (total == 0)
+    {
+        printf("No students available\n");
+        return;
+    }
+
+    maxGPA = minGPA = students[0].gpa;
+
+    for (i = 1; i < total; i++)
+    {
+        if (students[i].gpa > maxGPA) maxGPA = students[i].gpa;
+        if (students[i].gpa < minGPA) minGPA = students[i].gpa;
+    }
+
+    printf("Maximum GPA: %.2f\n", maxGPA);
+    printf("Minimum GPA: %.2f\n", minGPA);
 }
 
 /* add new student */
 void addStudent(int capacity)
 {
     Student s;
-    int choice;
-    int current;
+    int choice, current;
 
     printf("1) BUE\n2) AAST\nChoice: ");
     scanf("%d", &choice);
@@ -233,8 +201,7 @@ void addStudent(int capacity)
         strcpy(s.uni, "AAST");
         current = countStudentsInFile(FILE_AAST);
     }
-    else
-        return;
+    else return;
 
     if (current >= capacity)
     {
@@ -254,10 +221,8 @@ void addStudent(int capacity)
     printf("Course: ");
     scanf("%s", s.course);
 
-    if (choice == 1)
-        addToUniFile(FILE_BUE, s);
-    else
-        addToUniFile(FILE_AAST, s);
+    if (choice == 1) addToUniFile(FILE_BUE, s);
+    else addToUniFile(FILE_AAST, s);
 
     addToCSV(s);
 }
@@ -269,28 +234,25 @@ void menu()
     printf("2) Display students\n");
     printf("3) Search GPA\n");
     printf("4) File sizes\n");
-    printf("5) Exit\n");
+    printf("5) Max & Min GPA\n");
+    printf("6) Exit\n");
 }
 
 /* main */
 int main()
 {
-    Student* students;
-    Student* filtered;
-    int capacity;
-    int max;
-    int total = 0;
-    int choice;
-    int uniChoice;
+    Student students[200];
+    Student filtered[200];
+
+    int capacity, max, all = 0;
+    int choice, uniChoice;
     float gpa;
 
     printf("Enter capacity per university: ");
     scanf("%d", &capacity);
 
     max = capacity * 2;
-    students = (Student*)malloc(max * sizeof(Student));
-
-    total = loadCSV(students, max);
+    all = loadCSV(students, max);
 
     do
     {
@@ -300,23 +262,21 @@ int main()
         if (choice == 1)
         {
             addStudent(capacity);
-            total = loadCSV(students, max);
+            all = loadCSV(students, max);
         }
         else if (choice == 2)
         {
-            filtered = (Student*)malloc(total * sizeof(Student));
             printf("1) BUE  2) AAST  3) BOTH: ");
             scanf("%d", &uniChoice);
 
-            int c = filterUni(students, total, filtered, uniChoice);
+            int c = filterUni(students, all, filtered, uniChoice);
             display(filtered, c, "Students");
-            free(filtered);
         }
         else if (choice == 3)
         {
             printf("Enter GPA: ");
             scanf("%f", &gpa);
-            searchGPA(students, total, gpa);
+            searchGPA(students, all, gpa);
         }
         else if (choice == 4)
         {
@@ -324,9 +284,15 @@ int main()
             printf("AAST.txt size: %ld bytes\n", getFileSizeBytes(FILE_AAST));
             printf("CSV size: %ld bytes\n", getFileSizeBytes(FILE_ALL));
         }
+        else if (choice == 5)
+        {
+            findMaxMinGPA(students, all);
+        }
 
-    } while (choice != 5);
+    } while (choice != 6);
 
-    free(students);
     return 0;
 }
+
+
+
